@@ -2,6 +2,7 @@ import bge
 import importlib
 import mathutils
 import math
+import numbers
 import collections
 import re
 import time
@@ -685,7 +686,6 @@ class LogicNetwork(LogicNetworkCell):
             subnetwork = owner_object[node_tree_name]
             self.sub_networks.append(subnetwork)
     pass
-
 
 #Parameter Cells
 class ParamOwnerObject(ParameterCell):
@@ -1942,6 +1942,36 @@ class ConditionMouseReleased(ConditionCell):
     pass
 
 
+class ActionRepeater(ActionCell):
+    def __init__(self):
+        ActionCell.__init__(self)
+        self.input_value = None
+        self.output_cells = []
+        self.output_value = None
+    def setup(self, network):
+        super(ActionCell, self).setup(network)
+        for cell in self.output_cells:
+            cell.setup(network)
+    def evaluate(self):
+        self._set_ready()
+        input_value = self.get_parameter_value(self.input_value)
+        if isinstance(input_value, numbers.Number):
+            for e in range(0, input_value):
+                self._set_value(e)
+                for cell in self.output_cells: cell.evaluate()
+        else:
+            for e in input_value:
+                self._set_value(e)
+                for cell in self.output_cells: cell.evaluate()
+                pass
+            pass
+        for cell in self.output_cells:
+            cell.reset()
+            pass
+        pass
+    pass
+
+
 class ConditionCollision(ConditionCell):
     def __init__(self):
         ConditionCell.__init__(self)
@@ -1952,9 +1982,13 @@ class ConditionCollision(ConditionCell):
         self._normal = None
         self._collision_triggered = False
         self._last_monitored_object = None
+        self._objects = []
+        self._opn_set = []
         self.TARGET = LogicNetworkSubCell(self, self.get_target)
         self.POINT = LogicNetworkSubCell(self, self.get_point)
         self.NORMAL = LogicNetworkSubCell(self, self.get_normal)
+        self.OBJECTS = LogicNetworkSubCell(self, self.get_objects)
+        self.OPN_SET = LogicNetworkSubCell(self, self.get_opn_set)
 
     def get_point(self): return self._point
 
@@ -1962,15 +1996,23 @@ class ConditionCollision(ConditionCell):
 
     def get_target(self): return self._target
 
+    def get_objects(self): return self._objects
+
+    def get_opn_set(self): return self._opn_set
+
     def _collision_callback(self, obj, point, normal):
         self._collision_triggered = True
         self._target = obj
         self._point = point
         self._normal = normal
+        self._objects.append(obj)
+        self._opn_set.append((obj, point, normal))
 
     def reset(self):
         LogicNetworkCell.reset(self)
         self._collision_triggered = False
+        self._objects = []
+        self._opn_set = []
 
     def _reset_last_monitored_object(self, new_monitored_object_value):
         if none_or_invalid(new_monitored_object_value): new_monitored_object_value = None

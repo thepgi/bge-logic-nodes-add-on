@@ -14,6 +14,10 @@ add multiline comments
 finish templates
 --- DONE ---
 0.2.6
+The auto-update-trees on open file doesn't work because the invoked operator only updates the current tree. Fixes requires a procedure that doesn't depend
+on the context (to avoid writing two functions that do the same stuff).
+add Repeater node: executes the linked node once for each element of an input set / number
+add Colliding Objects / OPN list output to collision node.
 0.2.5
 add custom node templates
 changed ActionFindGameObject to fix a status waiting issue, implemented parent and branch root

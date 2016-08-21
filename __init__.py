@@ -274,12 +274,24 @@ def refresh_custom_nodes(dummy):
 def request_tree_code_writer_start(dummy):
     global _tree_code_writer_started
     _tree_code_writer_started = False
+    print("updating tree code on file open...")
+    generator = ops.tree_code_generator.TreeCodeGenerator()
+    for node_tree in bpy.data.node_groups:
+        if node_tree.bl_idname == ui.BGELogicTree.bl_idname:
+            print("writing tree script for ", node_tree.name)
+            generator.write_code_for_tree(node_tree)
 bpy.app.handlers.load_post.append(refresh_custom_nodes)
 bpy.app.handlers.load_post.append(request_tree_code_writer_start)
 bpy.app.handlers.save_post.append(refresh_custom_nodes)
 
+#import modules and definitions
 ui = _abs_import("ui", _abs_path("ui", "__init__.py"))
 ops = _abs_import("ops", _abs_path("ops", "__init__.py"))
+ops.abstract_text_buffer = _abs_import("abstract_text_buffer", _abs_path("ops", "abstract_text_buffer.py"))
+ops.bl_text_buffer = _abs_import("bl_text_buffer", _abs_path("ops","bl_text_buffer.py"))
+ops.file_text_buffer = _abs_import("file_text_buffer", _abs_path("ops","file_text_buffer.py"))
+ops.tree_code_generator = _abs_import("tree_code_generator", _abs_path("ops","tree_code_generator.py"))
+ops.uid_map = _abs_import("uid_map", _abs_path("ops", "uid_map.py"))
 utilities = _abs_import("utilities", _abs_path("utilities", "__init__.py"))
 
 

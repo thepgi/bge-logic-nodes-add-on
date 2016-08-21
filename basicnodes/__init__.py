@@ -1736,11 +1736,13 @@ class NLConditionCollisionNode(bpy.types.Node, NLConditionNode):
         self.outputs.new(NLGameObjectSocket.bl_idname, "Game Object")
         self.outputs.new(NLParameterSocket.bl_idname, "Point")
         self.outputs.new(NLParameterSocket.bl_idname, "Normal")
+        self.outputs.new(NLParameterSocket.bl_idname, "Game Object Set")
+        self.outputs.new(NLParameterSocket.bl_idname, "(Obj,Pt,Norm) Set")
 
     def get_netlogic_class_name(self):
         return "bgelogic.ConditionCollision"
     def get_input_sockets_field_names(self): return ["game_object"]
-    def get_output_socket_varnames(self): return [OUTCELL, "TARGET", "POINT", "NORMAL"]
+    def get_output_socket_varnames(self): return [OUTCELL, "TARGET", "POINT", "NORMAL", "OBJECTS", "OPN_SET"]
 _nodes.append(NLConditionCollisionNode)
 
 
@@ -2098,6 +2100,28 @@ class NLStopLogicNetworkActionNode(bpy.types.Node, NLActionNode):
     def get_netlogic_class_name(self): return "bgelogic.ActionStopLogicNetwork"
     def get_input_sockets_field_names(self): return ["condition", "game_object", "logic_network_name"]
 _nodes.append(NLStopLogicNetworkActionNode)
+
+
+class NLActionRepeater(bpy.types.Node, NLActionNode):
+    bl_idname = "NLActionRepeater"
+    bl_label = "Repeater"
+    def init(self, context):
+        NLActionNode.init(self, context)
+        self.inputs.new(NLParameterSocket.bl_idname, "Input Set")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output Value")
+    def get_netlogic_class_name(self):
+        return "bgelogic.ActionRepeater"
+    def get_input_sockets_field_names(self):
+        return ["input_value"]
+    def write_cell_fields_initialization(self, cell_varname, uids, line_writer):
+        super(NLActionRepeater, self).write_cell_fields_initialization(cell_varname, uids, line_writer)
+        output_socket = self.outputs[0]
+        for output_link in output_socket.links:
+            output_target = output_link.to_socket.node
+            output_uid = uids.get_varname_for_node(output_target)
+            line_writer.write_line("{}.output_cells.append({})", cell_varname, output_uid)
+            uids.remove_cell_from_tree(output_uid)
+_nodes.append(NLActionRepeater)
 
 
 class NLActionSetGameObjectVisibility(bpy.types.Node, NLActionNode):
