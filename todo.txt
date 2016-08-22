@@ -13,6 +13,9 @@ add a vector 4 node
 add multiline comments
 finish templates
 --- DONE ---
+0.2.7
+Repeater node, added indexed outputs to predict evaluation order. It also makes clearer that there can be multiple outputs.
+Repeater node now has a condition input.
 0.2.6
 The auto-update-trees on open file doesn't work because the invoked operator only updates the current tree. Fixes requires a procedure that doesn't depend
 on the context (to avoid writing two functions that do the same stuff).

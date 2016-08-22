@@ -1945,6 +1945,7 @@ class ConditionMouseReleased(ConditionCell):
 class ActionRepeater(ActionCell):
     def __init__(self):
         ActionCell.__init__(self)
+        self.condition = None
         self.input_value = None
         self.output_cells = []
         self.output_value = None
@@ -1954,6 +1955,8 @@ class ActionRepeater(ActionCell):
             cell.setup(network)
     def evaluate(self):
         self._set_ready()
+        condition = self.get_parameter_value(self.condition)
+        if not condition: return
         input_value = self.get_parameter_value(self.input_value)
         if isinstance(input_value, numbers.Number):
             for e in range(0, input_value):

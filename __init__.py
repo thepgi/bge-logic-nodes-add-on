@@ -2,7 +2,7 @@ bl_info = {
     "name": "BGE Logic Tree",
     "description": "A NodeTree to create game logic",
     "author": "pgi",
-    "version": (0, 2, 6),
+    "version": (0, 2, 7),
     "blender": (2, 7, 6),
     "location": "NodeEditor",
     "warning": "Alpha",
@@ -328,6 +328,8 @@ def _get_key_for_class(c):
     if hasattr(c, "bl_label"): return c.bl_label
     else: return "zzz"
 _registered_classes = sorted(_registered_classes, key=_get_key_for_class)
+
+#Create the menu items that allow the user to add nodes to a tree
 def _list_menu_nodes():
     proxy_map = {}
     proxy_map["Basic Uncategorized Parameters"] = []
@@ -395,6 +397,7 @@ class NoteNode(bpy.types.Node):
         row.scale_y = 0.25
         row.prop(self, "edit", text="", toggle=True)
 
+#blender add-on registration callback
 def register():
     for cls in _registered_classes:
         print("Registering... {}".format(cls.__name__))
@@ -406,7 +409,7 @@ def register():
     bpy.types.Object.bgelogic_treelist = bpy.props.CollectionProperty(type=NLNodeTreeReference)
     pass
 
-
+#blender add-on unregistration callback
 def unregister():
     bpy.utils.unregister_class(NoteNode)
     print("Unregister node category [{}]".format("NETLOGIC_NODES"))

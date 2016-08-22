@@ -2107,20 +2107,30 @@ class NLActionRepeater(bpy.types.Node, NLActionNode):
     bl_label = "Repeater"
     def init(self, context):
         NLActionNode.init(self, context)
+        self.inputs.new(NLConditionSocket.bl_idname, "Condition")
         self.inputs.new(NLParameterSocket.bl_idname, "Input Set")
-        self.outputs.new(NLParameterSocket.bl_idname, "Output Value")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output Step 0")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output Step 1")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output Step 2")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output Step 3")
     def get_netlogic_class_name(self):
         return "bgelogic.ActionRepeater"
     def get_input_sockets_field_names(self):
-        return ["input_value"]
+        return ["condition", "input_value"]
     def write_cell_fields_initialization(self, cell_varname, uids, line_writer):
         super(NLActionRepeater, self).write_cell_fields_initialization(cell_varname, uids, line_writer)
-        output_socket = self.outputs[0]
-        for output_link in output_socket.links:
-            output_target = output_link.to_socket.node
-            output_uid = uids.get_varname_for_node(output_target)
-            line_writer.write_line("{}.output_cells.append({})", cell_varname, output_uid)
-            uids.remove_cell_from_tree(output_uid)
+        outpass_0 = self.outputs[0]
+        outpass_1 = self.outputs[1]
+        outpass_2 = self.outputs[2]
+        outpass_3 = self.outputs[3]
+        outputs = [outpass_0, outpass_1, outpass_2, outpass_3]
+        for output_socket in outputs:
+            if output_socket.is_linked:
+                for output_link in output_socket.links:
+                    output_target = output_link.to_socket.node
+                    output_uid = uids.get_varname_for_node(output_target)
+                    line_writer.write_line("{}.output_cells.append({})", cell_varname, output_uid)
+                    uids.remove_cell_from_tree(output_uid)
 _nodes.append(NLActionRepeater)
 
 
