@@ -510,7 +510,8 @@ class AudioSystem(object):
         return fac
     def create_sound_handle(self, fpath):
         factory = self.get_or_create_audio_factory(fpath)
-        return self.device.play(factory)
+        handle = self.device.play(factory)
+        return handle
     def compute_listener_velocity(self, listener):
         return (0,0,0)
     def update(self, network):
@@ -1148,28 +1149,82 @@ class ParameterVector(ParameterCell):
     def get_normalized_vector(self): return self.output_vector.normalized()
 
     def evaluate(self):
+        self._set_ready()
         x = self.get_parameter_value(self.input_x)
         y = self.get_parameter_value(self.input_y)
         z = self.get_parameter_value(self.input_z)
         v = self.get_parameter_value(self.input_vector)
-        if x is LogicNetworkCell.STATUS_WAITING: return
-        if y is LogicNetworkCell.STATUS_WAITING: return
-        if z is LogicNetworkCell.STATUS_WAITING: return
-        if v is LogicNetworkCell.STATUS_WAITING: return
-        self._set_ready()
         if v is not None: self.output_vector[:] = v#TODO: zero vector if v is None?
         if x is not None: self.output_vector.x = x
         if y is not None: self.output_vector.y = y
         if z is not None: self.output_vector.z = z
         self._set_value(self.output_vector)
 
+class ParameterVector4(ParameterCell):
+    def __init__(self):
+        ParameterCell.__init__(self)
+        self.in_x = None
+        self.in_y = None
+        self.in_z = None
+        self.in_w = None
+        self.in_vec = None
+        self.out_x = 0
+        self.out_y = 0
+        self.out_z = 0
+        self.out_w = 1
+        self.out_vec = mathutils.Vector((0,0,0,1))
+        self.OUTX = LogicNetworkSubCell(self, self._get_out_x)
+        self.OUTY = LogicNetworkSubCell(self, self._get_out_y)
+        self.OUTZ = LogicNetworkSubCell(self, self._get_out_z)
+        self.OUTW = LogicNetworkSubCell(self, self._get_out_w)
+        self.OUTVEC = LogicNetworkSubCell(self, self._get_out_vec)
+    def _get_out_x(self): return self.out_x
+    def _get_out_y(self): return self.out_y
+    def _get_out_z(self): return self.out_z
+    def _get_out_w(self): return self.out_w
+    def _get_out_vec(self): return self.out_vec.copy()
+    def get_parameter_value(self, param, default_value):
+        if param is None: return default_value
+        elif hasattr(param, "get_value"):
+            value = param.get_value()
+            if(value is LogicNetwork.STATUS_WAITING): raise "Unexpected error in tree"
+            else: return value
+        else: return param
+    def evaluate(self):
+        self._set_ready()
+        x = self.get_parameter_value(self.in_x, None)
+        y = self.get_parameter_value(self.in_y, None)
+        z = self.get_parameter_value(self.in_z, None)
+        w = self.get_parameter_value(self.in_w, None)
+        vec = self.get_parameter_value(self.in_vec, None)
+        if(vec is not None):
+            #out is vec with vec components replaced by non null x,y,z,w
+            self.out_x = vec.x if x is None else x
+            self.out_y = vec.y if y is None else y
+            self.out_z = vec.z if z is None else z
+            self.out_w = 1
+            if(len(vec) >= 4):
+                self.out_w = vec.w if w is None else w
+            elif(w is not None):
+                self.out_w = w
+            self.out_vec[:] = (self.out_x, self.out_y, self.out_z, self.out_w)
+        else:
+            #in vec is None
+            self.out_x = 0 if x is None else x
+            self.out_y = 0 if y is None else y
+            self.out_z = 0 if z is None else z
+            self.out_w = 1 if w is None else w
+            self.out_vec[:] = (self.out_x, self.out_y, self.out_z, self.out_w)
+            pass
+        pass
+    pass
 
 class ParameterSound(ParameterCell):
     class SoundHandleController():
         def __init__(self, ps_cell):
             self.owner = ps_cell
             self.handle = None
-        def update(self, location, orientation_quat, velocity, pitch, volume, loop_count, attenuation):
+        def update(self, location, orientation_quat, velocity, pitch, volume, loop_count, attenuation, distance_ref, distance_max):
             handle = self.handle
             if handle is None: return
             if not (handle.status == aud.AUD_STATUS_PLAYING): return
@@ -1180,7 +1235,9 @@ class ParameterSound(ParameterCell):
             if pitch is not None: handle.pitch = pitch
             if loop_count is not None: handle.loop_count = loop_count
             if attenuation is not None: handle.attenuation = attenuation
-        def play(self, location, orientation_quat, velocity, pitch, volume, loop_count, attenuation):
+            if distance_ref is not None: handle.distance_reference = distance_ref
+            if distance_max is not None: handle.distance_maximum = distance_max
+        def play(self, location, orientation_quat, velocity, pitch, volume, loop_count, attenuation, distance_ref, distance_max):
             handle = self.handle
             if handle is None or (handle.status == aud.AUD_STATUS_STOPPED) or (handle.status == aud.AUD_STATUS_INVALID):
                 handle = self.owner.create_handle()
@@ -1197,6 +1254,8 @@ class ParameterSound(ParameterCell):
             if pitch is not None: handle.pitch = pitch
             if loop_count is not None: handle.loop_count = loop_count
             if attenuation is not None: handle.attenuation = attenuation
+            if distance_ref is not None: handle.distance_reference = distance_ref
+            if distance_max is not None: handle.distance_maximum = distance_max
         def stop(self):
             handle = self.handle
             if handle is not None:
@@ -1388,6 +1447,7 @@ class ConditionValueChanged(ConditionCell):
         return self._current_value
     def reset(self):
         ConditionCell.reset(self)
+        self._set_value(False)
         self._previous_value = self._current_value
     def evaluate(self):
         curr = self.get_parameter_value(self.current_value)
@@ -2108,13 +2168,33 @@ class ActionEndGame(ActionCell):
         ActionCell.__init__(self)
         self.condition = None
     def evaluate(self):
+        self._set_ready()
         condition = self.get_parameter_value(self.condition)
-        if condition is LogicNetworkCell.STATUS_WAITING: return
-        if not condition:
-            self._set_ready()
-            return
-        bge.logic.endGame()
+        if condition:bge.logic.endGame()
+        pass
+    pass
 
+class ActionStartGame(ActionCell):
+    def __init__(self):
+        ActionCell.__init__(self)
+        self.condition = None
+        self.file_name = None
+    def evaluate(self):
+        self._set_ready()
+        condition = self.get_parameter_value(self.condition)
+        file_name = self.get_parameter_value(self.file_name)
+        if condition: bge.logic.startGame(file_name)
+        pass
+    pass
+
+class ActionRestartGame(ActionCell):
+    def __init__(self):
+        ActionCell.__init__(self)
+        self.condition = None
+    def evaluate(self):
+        self._set_ready()
+        condition = self.get_parameter_value(self.condition)
+        if condition: bge.logic.restartGame();
 
 
 class ActionSetObjectAttribute(ActionCell):
@@ -3273,6 +3353,8 @@ class ActionStartSound(ActionCell):
         self.pitch = None
         self.volume = None
         self.attenuation = None
+        self.distance_ref = None
+        self.distance_max = None
         self._euler = mathutils.Euler((0,0,0), "XYZ")
         self._prev_loop_count = None
     def evaluate(self):
@@ -3289,14 +3371,8 @@ class ActionStartSound(ActionCell):
         loop_count = self.get_parameter_value(self.loop_count)
         volume = self.get_parameter_value(self.volume)
         attenuation = self.get_parameter_value(self.attenuation)
-        if sound is LogicNetworkCell.STATUS_WAITING: return
-        if location is LogicNetworkCell.STATUS_WAITING: return
-        if orientation is LogicNetworkCell.STATUS_WAITING: return
-        if velocity is LogicNetworkCell.STATUS_WAITING: return
-        if pitch is LogicNetworkCell.STATUS_WAITING: return
-        if loop_count is LogicNetworkCell.STATUS_WAITING: return
-        if volume is LogicNetworkCell.STATUS_WAITING: return
-        if attenuation is LogicNetworkCell.STATUS_WAITING: return
+        distance_ref = self.get_parameter_value(self.distance_ref)
+        distance_max = self.get_parameter_value(self.distance_max)
         self._set_ready()
         if sound is None:
             return
@@ -3311,7 +3387,7 @@ class ActionStartSound(ActionCell):
             self._prev_loop_count = loop_count
         else:
             loop_count = None
-        sound.play(location, orientation, velocity, pitch, volume, loop_count, attenuation)
+        sound.play(location, orientation, velocity, pitch, volume, loop_count, attenuation, distance_ref, distance_max)
 
 
 class ActionUpdateSound(ActionCell):
@@ -3325,6 +3401,8 @@ class ActionUpdateSound(ActionCell):
         self.pitch = None
         self.volume = None
         self.attenuation = None
+        self.distance_ref = None
+        self.distance_max = None
         self._euler = mathutils.Euler((0,0,0), "XYZ")
     def evaluate(self):
         condition = self.get_parameter_value(self.condition)
@@ -3339,13 +3417,8 @@ class ActionUpdateSound(ActionCell):
         pitch = self.get_parameter_value(self.pitch)
         volume = self.get_parameter_value(self.volume)
         attenuation = self.get_parameter_value(self.attenuation)
-        if sound is LogicNetworkCell.STATUS_WAITING: return
-        if location is LogicNetworkCell.STATUS_WAITING: return
-        if orientation is LogicNetworkCell.STATUS_WAITING: return
-        if velocity is LogicNetworkCell.STATUS_WAITING: return
-        if pitch is LogicNetworkCell.STATUS_WAITING: return
-        if volume is LogicNetworkCell.STATUS_WAITING: return
-        if attenuation is LogicNetworkCell.STATUS_WAITING: return
+        distance_ref = self.get_parameter_value(self.distance_ref)
+        distance_max = self.get_parameter_value(self.distance_max)
         self._set_ready()
         if sound is None:
             return
@@ -3356,7 +3429,7 @@ class ActionUpdateSound(ActionCell):
                 euler = self._euler
                 euler[:] = orientation
                 orientation = euler.to_quaternion()
-        sound.update(location, orientation, velocity, pitch, volume, None, attenuation)
+        sound.update(location, orientation, velocity, pitch, volume, None, attenuation, distance_ref, distance_max)
 
 
 class ActionStopSound(ActionCell):

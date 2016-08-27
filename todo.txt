@@ -1,5 +1,4 @@
 --- TODO ---
-add load game
 add distance condition, with hysteresis
 remove status check
 check action started/finished behavior for LOOP and PING PONG
@@ -9,10 +8,18 @@ add movie player
 more arithmetic ops
 find a way to add a "group" node.
 add a character logger node (when user types something, log it as a character)
-add a vector 4 node
 add multiline comments
 finish templates
 --- DONE ---
+0.2.8
+Add Vec4 parameter
+Removed status waiting from Vec cell
+Added distance_ref, distance_max to start/update sound
+Fixed cast error in update sound node ui
+Removed status check for start/update sound
+Add Start Game
+Add Restart Game
+Fixed value changed condition (missing reset line cause the condition to keep the triggered status)
 0.2.7
 Repeater node, added indexed outputs to predict evaluation order. It also makes clearer that there can be multiple outputs.
 Repeater node now has a condition input.
