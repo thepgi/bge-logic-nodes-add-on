@@ -141,6 +141,23 @@ _enum_mouse_buttons = [
     ("bge.events.RIGHTMOUSE", "Right Button", "Right Button of the mouse")
 ]
 
+_enum_string_ops = [
+    ("0", "Postfix", "OUT = STRING + PARAMETER A"),
+    ("1", "Prefix", "OUT = PARAMETER A + STRING"),
+    ("2", "Infix", "OUT = PARAMETER A + STRING + PARAMETER B"),
+    ("3", "Remove Last", "OUT = STRING - LAST CHARACTER"),
+    ("4", "Remove First", "OUT = STRING - FIRST CHARACTER"),
+    ("5", "Replace", "OUT = STRING with all PARAMETER A occurrences replaced by PARAMETER B"),
+    ("6", "Upper Case", "OUT = STRING to upper case"),
+    ("7", "Lower Case", "OUT = STRING to lower case"),
+    ("8", "Remove Range", "OUT = STRING - the character from index PARAMETER A to index PARAMETER B"),
+    ("9", "Insert At", "OUT = STRING + the PARAMETER A inserted ad the index PARAMETER B"),
+    ("10", "Length", "OUT = the length (character cout, integer value) of the input STRING"),
+    ("11", "Substring", "OUT = the STRING portion from PARAMETER A to PARAMETER B"),
+    ("12", "First Index Of", "OUT = the position (integer value) of the first PARAMETER A occurrence in STRING"),
+    ("13", "Last Index Of", "OUT = the position (integer value) of the first PARAMETER A occurrence int STRING")
+]
+
 _enum_math_operations = [
     ("ADD", "A + B", "Sum A and B"),
     ("SUB", "A - B", "Subtract B from A"),
@@ -1604,7 +1621,7 @@ _nodes.append(NLAlwaysConditionNode)
 class NLKeyPressedCondition(bpy.types.Node, NLConditionNode):
     bl_idname = "NLKeyPressedCondition"
     bl_label = "Key Pressed"
-    nl_category = "Basic Keyboard nodes"
+    nl_category = "Basic Keyboard Nodes"
     pulse = bpy.props.BoolProperty(
         description="ON: True until the key is released, OFF: True when pressed, then False until pressed again",
         update=update_tree_code)
@@ -1626,10 +1643,31 @@ class NLKeyPressedCondition(bpy.types.Node, NLConditionNode):
 _nodes.append(NLKeyPressedCondition)
 
 
+class NLKeyLoggerAction(bpy.types.Node, NLActionNode):
+    bl_idname = "NLKeyLoggerAction"
+    bl_label = "Key Logger"
+    nl_category = "Basic Keyboard Nodes"
+    
+    def init(self, context):
+        NLActionNode.init(self, context)
+        self.inputs.new(NLConditionSocket.bl_idname, "Condition")
+        self.outputs.new(NLConditionSocket.bl_idname, "Key Logged")
+        self.outputs.new(NLParameterSocket.bl_idname, "Key Code")
+        self.outputs.new(NLParameterSocket.bl_idname, "Logged Char")
+    def get_netlogic_class_name(self):
+        return "bgelogic.ActionKeyLogger"
+    def get_input_sockets_field_names(self):
+        return ["condition"]
+    def get_output_socket_varnames(self):
+        return ["KEY_LOGGED", "KEY_CODE", "CHARACTER"]
+    pass
+_nodes.append(NLKeyLoggerAction)
+
+
 class NLKeyReleasedCondition(bpy.types.Node, NLConditionNode):
     bl_idname = "NLKeyReleasedCondition"
     bl_label = "Key Released"
-    nl_category = "Basic Keyboard nodes"
+    nl_category = "Basic Keyboard Nodes"
     pulse = bpy.props.BoolProperty(
         description="ON: True until the key is released, OFF: True when pressed, then False until pressed again", default=True,
         update=update_tree_code)
@@ -3010,6 +3048,22 @@ class NLParameterDistance(bpy.types.Node, NLParameterNode):
 _nodes.append(NLParameterDistance)
 
 
+class NLParameterKeyboardKeyCode(bpy.types.Node, NLParameterNode):
+    bl_idname = "NLParameterKeyboardKeyCode"
+    bl_label = "Keyboard Key Code"
+    nl_category = "Basic Keyboard Nodes"
+    value = bpy.props.StringProperty(update=update_tree_code)
+    def init(self, context):
+        NLParameterNode.init(self, context)
+        self.inputs.new(NLKeyboardKeySocket.bl_idname, "")
+        self.outputs.new(NLParameterSocket.bl_idname, "Code")
+    def get_input_sockets_field_names(self): 
+        return ["key_code"]
+    def get_netlogic_class_name(self):
+        return "bgelogic.ParameterKeyboardKeyCode"
+_nodes.append(NLParameterKeyboardKeyCode)
+
+
 class NLActionMoveTo(bpy.types.Node, NLActionNode):
     bl_idname = "NLActionMoveTo"
     bl_label = "Move To"
@@ -3173,3 +3227,26 @@ class NLActionSetCurrentScene(bpy.types.Node, NLActionNode):
     def get_input_sockets_field_names(self):
         return ["condition", "scene_name"]
 _nodes.append(NLActionSetCurrentScene)
+
+
+class NLActionStringOp(bpy.types.Node, NLActionNode):
+    bl_idname = "NLActionStringOp"
+    bl_label = "String Op"
+    nl_category = "Basic String Nodes"
+    value = bpy.props.EnumProperty(items=_enum_string_ops, update=update_tree_code)
+    def init(self, context):
+        NLActionNode.init(self, context)
+        self.inputs.new(NLConditionSocket.bl_idname, "Condition")
+        self.inputs.new(NLParameterSocket.bl_idname, "Input String")
+        self.inputs.new(NLParameterSocket.bl_idname, "Parameter A")
+        self.inputs.new(NLParameterSocket.bl_idname, "Parameter B")
+        self.outputs.new(NLParameterSocket.bl_idname, "Output String")
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "value", text="Op")
+    def get_netlogic_class_name(self):
+        return "bgelogic.ActionStringOp"
+    def get_input_sockets_field_names(self):
+        return ["condition", "input_string", "input_param_a", "input_param_b"]
+    def get_nonsocket_fields(self):
+        return [("opcode", self.value)]
+_nodes.append(NLActionStringOp)

@@ -7,10 +7,12 @@ add joystick input control
 add movie player
 more arithmetic ops
 find a way to add a "group" node.
-add a character logger node (when user types something, log it as a character)
 add multiline comments
 finish templates
 --- DONE ---
+0.2.9 (in progress)
+KeyLogger (add a character logger node (when user types something, log it as a character))
+String operations
 0.2.8
 Add Vec4 parameter
 Removed status waiting from Vec cell

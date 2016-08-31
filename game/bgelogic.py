@@ -175,7 +175,6 @@ SimpleLoggingDatabase.serializers[str(type((0,0,0)))] = ListSerializer()
 SimpleLoggingDatabase.serializers[str(type(mathutils.Vector()))] = VectorSerializer()
 #End of persistent maps
 
-
 LO_AXIS_TO_STRING_CODE = {
     0:"X",1:"Y",2:"Z",
     3:"-X",4:"-Y",5:"-Z",
@@ -537,6 +536,7 @@ class LogicNetwork(LogicNetworkCell):
         self.keyboard = None
         self.mouse = None
         self.keyboard_events = None
+        self.active_keyboard_events = None
         self.mouse_events = None
         self.stopped = False
         self.timeline = 0.0
@@ -547,6 +547,7 @@ class LogicNetwork(LogicNetworkCell):
         self.mouse_wheel_delta = 0
         self.audio_system = AudioSystem()
         self.sub_networks = []#a list of networks updated by this network
+        self.capslock_pressed = False
         pass
 
     def ray_cast(self, caster_object, ray_origin, ray_destination, property, distance):
@@ -631,7 +632,11 @@ class LogicNetwork(LogicNetworkCell):
         mpos_delta[1] = curr_mpos[1] - last_mpos[1]
         last_mpos[:] = curr_mpos
         #store mouse and keyboard events to be used by cells
-        self.keyboard_events = self.keyboard.events
+        self.keyboard_events = self.keyboard.events.copy()
+        self.active_keyboard_events = self.keyboard.active_events.copy()
+        caps_lock_event = self.keyboard_events[bge.events.CAPSLOCKKEY]
+        if(caps_lock_event == bge.logic.KX_INPUT_JUST_RELEASED):
+            self.capslock_pressed = not self.capslock_pressed
         me = self.mouse.events
         self.mouse_wheel_delta = 0
         if(me[bge.events.WHEELUPMOUSE] == bge.logic.KX_INPUT_JUST_ACTIVATED): self.mouse_wheel_delta = 1
@@ -1677,6 +1682,9 @@ class ConditionAndList(ConditionCell):
         if cf is STATUS_WAITING: return
         self._set_ready()
         self._set_value(ca and cb and cc and cd and ce and cf)
+        pass
+    pass
+
 class ConditionKeyPressed(ConditionCell):
     def __init__(self, pulse=False, key_code=None):
         ConditionCell.__init__(self)
@@ -1698,6 +1706,57 @@ class ConditionKeyPressed(ConditionCell):
         else:
             self._set_value(keystat == bge.logic.KX_INPUT_JUST_ACTIVATED)
         pass
+
+
+class ActionKeyLogger(ActionCell):
+    def __init__(self):
+        ActionCell.__init__(self)
+        self.condition = None
+        self._key_logged = None
+        self._key_code = None
+        self._character = None
+        self.KEY_LOGGED = LogicNetworkSubCell(self, self.get_key_logged)
+        self.KEY_CODE = LogicNetworkSubCell(self, self.get_key_code)
+        self.CHARACTER = LogicNetworkSubCell(self, self.get_character)
+    def get_key_logged(self):
+        return self._key_logged
+    def get_key_code(self):
+        return self._key_code
+    def get_character(self):
+        return self._character
+    def reset(self):
+        LogicNetworkCell.reset(self)
+        self._key_logged = False
+        self._key_code = None
+        self._character = None
+    def evaluate(self):
+        self._set_ready()
+        condition = self.get_parameter_value(self.condition)
+        if not condition: return
+        network = self.network
+        keyboard_status = network.keyboard_events
+        left_shift_status = keyboard_status[bge.events.LEFTSHIFTKEY]
+        right_shift_status = keyboard_status[bge.events.RIGHTSHIFTKEY]
+        shift_down = (
+            (left_shift_status == bge.logic.KX_INPUT_JUST_ACTIVATED) or
+            (left_shift_status == bge.logic.KX_INPUT_ACTIVE) or
+            (right_shift_status == bge.logic.KX_INPUT_JUST_ACTIVATED) or
+            (right_shift_status == bge.logic.KX_INPUT_ACTIVE) or
+            network.capslock_pressed
+        )
+        active_events = network.active_keyboard_events
+        for keycode in active_events:
+            event = active_events[keycode]
+            if(event is bge.logic.KX_INPUT_JUST_ACTIVATED):
+                #something has been pressed
+                self._character = bge.events.EventToCharacter(keycode, shift_down)
+                self._key_code = keycode
+                self._key_logged = True
+                return
+            pass
+        pass
+        
+        
 
 
 class ConditionMouseTargeting(ConditionCell):
@@ -4144,3 +4203,63 @@ class ActionSetCurrentScene(ActionCell):
             current_scene.end()
             pass
         pass
+
+class ParameterKeyboardKeyCode(ParameterCell):
+    def __init__(self):
+        ParameterCell.__init__(self)
+        self.key_code = None
+    def evaluate(self):
+        self._set_ready()
+        key_code = self.get_parameter_value(self.key_code)
+        self._set_value(key_code)
+        pass
+    pass
+
+class ActionStringOp(ActionCell):
+    def __init__(self):
+        ActionCell.__init__(self)
+        self.opcode = None
+        self.condition = None
+        self.input_string = None
+        self.input_param_a = None
+        self.input_param_b = None
+    def evaluate(self):
+        self._set_ready()
+        code = self.get_parameter_value(self.opcode)
+        condition = self.get_parameter_value(self.condition)
+        input_string = self.get_parameter_value(self.input_string)
+        input_param_a = self.get_parameter_value(self.input_param_a)
+        input_param_b = self.get_parameter_value(self.input_param_b)
+        if not condition: return
+        if input_string is None: return
+        input_string = str(input_string)
+        if code == 0:#postfix
+            self._set_value(input_string + str(input_param_a))
+        elif code == 1:#prefix
+            self._set_value(str(input_param_a) + input_string)
+        elif code == 2:#infix
+            self._set_value(str(input_param_a) + input_string + str(input_param_b))
+        elif code == 3:#remove last
+            self._set_value(input_string[:-1])
+        elif code == 4:#remove first
+            self._set_value(input_string[1:])
+        elif code == 5:#replace a with b in string
+            self._set_value(input_string.replace(str(input_param_a), str(input_param_b)))
+        elif code == 6:#upper case
+            self._set_value(input_string.upper())
+        elif code == 7:#lower case
+            self._set_value(input_string.lower())
+        elif code == 8:#remove range
+            self._set_value(input_string[:input_param_a]+input_string[input_param_b:])
+        elif code == 9:#insert at
+            self._set_value(input_string[:input_param_b] + str(input_param_a) + input_string[input_param_b:])
+        elif code == 10:#length
+            self._set_value(len(input_string))
+        elif code == 11:#substring
+            self._set_value(input_string[input_param_a:input_param_b])
+        elif code == 12:#first index of
+            self._set_value(input_string.find(str(input_param_a)))
+        elif code == 13:#last index of
+            self._set_value(input_string.rfind(str(input_param_a)))
+        pass
+    pass

@@ -55,14 +55,22 @@ class WaitForKeyOperator(bpy.types.Operator):
             if event.value == "LEFTMOUSE":
                 return {'FINISHED'}
             else:
-                self.socket.value = event.type
+                value = event.type
+                if(self.socket): self.socket.value = value
+                else: self.node.value = value
                 self.cleanup(context)
                 return {'FINISHED'}
         return {'PASS_THROUGH'}
     def invoke(self, context, event):
         self.socket = context.socket
-        self.socket.value = "Press a key..."
         self.node = context.node
+        if(not self.socket) and (not self.node): 
+            print("no socket or node")
+            return {'FINISHED'}
+        if(self.socket):
+            self.socket.value = "Press a key..."
+        else:
+            self.node.value = "Press a key..."
         context.region.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
