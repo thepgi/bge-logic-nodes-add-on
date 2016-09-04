@@ -3250,3 +3250,70 @@ class NLActionStringOp(bpy.types.Node, NLActionNode):
     def get_nonsocket_fields(self):
         return [("opcode", self.value)]
 _nodes.append(NLActionStringOp)
+
+
+_enum_predefined_math_fun = {
+    ("User Defined", "User Defined", "A formula defined by the user"),
+    ("exp(a)", "exp(e)", "e to the power a"),
+    ("pow(a,b)", "pow(a,b)", "a to the power b"),
+    ("log(a)", "log(a)", "natural log of a"),
+    ("log10(a)", "log10(a)", "base 10 log of a"),
+    ("acos(a)", "acos(a)", "arc cosine of a, radians"),
+    ("asin(a)", "asin(a)", "arc sine of a, radians"),
+    ("atan(a)", "atan(a)", "arc tangent of a, radians"),
+    ("atan2(a,b)", "atan2(a,b)", "atan(a / b), radians"),
+    ("cos(a)", "cos(a)", "cosine of a, radians"),
+    ("hypot(a,b)", "hypot(a,b)", "sqrt(a*a + b*b)"),
+    ("sin(a)", "sin(a)", "sine of a, radians"),
+    ("tan(a)", "tan(a)", "tangent of a, radians"),
+    ("degrees(a)", "degrees(a)", "convert a from radians to degrees"),
+    ("radians(a)", "radians(a)", "convert a from degrees to radians"),
+    ("acosh(a)", "acosh(a)", "inverse hyperbolic cosine of a"),
+    ("asinh(a)", "asinh(a)", "inverse hyperbolic cosing of a"),
+    ("atanh(a)", "atanh(a)", "inverse hyperbolic tangent of a"),
+    ("cosh(a)", "cosh(a)", "hyperbolic cosine of a"),
+    ("sinh(a)", "sinh(a)", "hyperbolic sine of a"),
+    ("tanh(a)", "tanh(a)", "hyperbolic tangent of a"),
+    ("pi", "pi", "the PI constant"),
+    ("e", "e", "the e constant"),
+    ("ceil(a)", "ceil(a)", "smallest integer value = or > to a"),
+    ("sign(a)", "sign(a)", "0 if a is 0, -1 if a < 0, 1 if a > 0"),
+    ("abs(a)", "abs(a)", "absolute value of a"),
+    ("floor(a)", "floor(a)", "largest integer value < or = to a"),
+    ("mod(a,b)", "mod(a,b)", "a modulo b"),
+    ("sqrt(a)", "sqrt(a)", "square root of a"),
+    ("curt(a)", "curt(a)", "cubic root of a"),
+    ("str(a)", "str(a)", "a (non string value) converted to a string"),
+    ("int(a)", "int(a)", "a (integer string) converted to an integer value"),
+    ("float(a)", "float(a)", "a (float string) converted to a float value")
+}
+class NLParameterMathFun(bpy.types.Node, NLParameterNode):
+    bl_idname = "NLParameterMathFun"
+    bl_label = "Formulas (Math & Co.)"
+    nl_category = "Basic Math Nodes"
+    def on_fun_changed(self, context):
+        if(self.predefined_formulas != "User Defined"):
+            self.value = self.predefined_formulas
+        update_tree_code(self, context)
+    value = bpy.props.StringProperty(update=update_tree_code)
+    predefined_formulas = bpy.props.EnumProperty(
+        items=_enum_predefined_math_fun, 
+        update=on_fun_changed,
+        default="User Defined")
+    def init(self, context):
+        NLParameterNode.init(self, context)
+        self.inputs.new(NLNumericFieldSocket.bl_idname, "a")
+        self.inputs.new(NLNumericFieldSocket.bl_idname, "b")
+        self.inputs.new(NLNumericFieldSocket.bl_idname, "c")
+        self.inputs.new(NLNumericFieldSocket.bl_idname, "d")
+        self.outputs.new(NLParameterSocket.bl_idname, "Result");
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "predefined_formulas", "Predef.")
+        layout.prop(self, "value", "Formula")
+    def get_input_sockets_field_names(self):
+        return ["a", "b", "c", "d"]
+    def get_nonsocket_fields(self):
+        return [("formula", '"{0}"'.format(self.value))]
+    def get_netlogic_class_name(self):
+        return "bgelogic.ParameterMathFun"
+_nodes.append(NLParameterMathFun)

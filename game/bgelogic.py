@@ -4263,3 +4263,79 @@ class ActionStringOp(ActionCell):
             self._set_value(input_string.rfind(str(input_param_a)))
         pass
     pass
+
+class ParameterMathFun(ParameterCell):
+    @classmethod
+    def signum(cls, a): return (a > 0) - (a < 0)
+    @classmethod
+    def curt(cls, a):
+        if a > 0: return a**(1./3.)
+        else: return -(-a)**(1./3.)
+    def __init__(self):
+        ParameterCell.__init__(self)
+        self.a = None
+        self.b = None
+        self.c = None
+        self.d = None
+        self.formula = ""
+        self._previous_values = [None, None, None, None]
+        self._formula_globals = globals();
+        self._formula_locals = {
+            "exp":math.exp,
+            "pow":math.pow,
+            "log":math.log,
+            "log10":math.log10,
+            "acos":math.acos,
+            "asin":math.asin,
+            "atan":math.atan,
+            "atan2":math.atan2,
+            "cos":math.cos,
+            "hypot":math.hypot,
+            "sin":math.sin,
+            "tan":math.tan,
+            "degrees":math.degrees,
+            "radians":math.radians,
+            "acosh":math.acosh,
+            "asinh":math.asinh,
+            "atanh":math.atanh,
+            "cosh":math.cosh,
+            "sinh":math.sinh,
+            "tanh":math.tanh,
+            "pi":math.pi,
+            "e":math.e,
+            "ceil":math.ceil,
+            "sign":ParameterMathFun.signum,
+            "abs":math.fabs,
+            "floor":math.floor,
+            "mod":math.fmod,
+            "sqrt":math.sqrt,
+            "curt":ParameterMathFun.curt,
+            "str":str,
+            "int":int,
+            "float":float
+        }
+    def evaluate(self):
+        self._set_ready()
+        a = self.get_parameter_value(self.a)
+        b = self.get_parameter_value(self.b)
+        c = self.get_parameter_value(self.c)
+        d = self.get_parameter_value(self.d)
+        olds = self._previous_values
+        do_update = (
+            (a != olds[0]) or
+            (b != olds[1]) or
+            (c != olds[2]) or
+            (d != olds[3]))
+        if do_update:
+            formula_locals = self._formula_locals
+            formula_locals["a"] = a
+            formula_locals["b"] = b
+            formula_locals["c"] = c
+            formula_locals["d"] = d
+            out = eval(self.formula, self._formula_globals, formula_locals)
+            olds[0] = a
+            olds[1] = b
+            olds[2] = c
+            olds[3] = d
+            self._set_value(out);
+            pass

@@ -10,7 +10,9 @@ find a way to add a "group" node.
 add multiline comments
 finish templates
 --- DONE ---
-0.2.9 (in progress)
+0.3.0
+More math
+0.2.9
 KeyLogger (add a character logger node (when user types something, log it as a character))
 String operations
 0.2.8

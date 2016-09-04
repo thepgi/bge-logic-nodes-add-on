@@ -2,7 +2,7 @@ bl_info = {
     "name": "BGE Logic Tree",
     "description": "A NodeTree to create game logic",
     "author": "pgi",
-    "version": (0, 2, 9),
+    "version": (0, 3, 0),
     "blender": (2, 7, 6),
     "location": "NodeEditor",
     "warning": "Alpha",
